@@ -32,6 +32,8 @@
                         <form method="post" action="/delete_category/{{ category.CategoryID }}" style="display:inline;">
                             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?');">Delete</button>
                         </form>
+                        <a href="/edit_category/{{ category.CategoryID }}" class="btn btn-warning btn-sm">Edit</a>
+
                     </td>
                 </tr>
             {% endfor %}

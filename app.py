@@ -85,7 +85,17 @@ def main():
         conn.commit()
         return redirect(url_for('main'))
 
-    cursor.execute('SELECT * FROM tblMain')
+    cursor.execute('''
+        SELECT
+            tblMain.ID,
+            tblMain.Description,
+            tblMain.Notes,
+            tblLocations.MainLocation || ' (' || tblLocations.Sublocation || ')' AS Location,
+            tblCategories.CategoryName
+        FROM tblMain
+        LEFT JOIN tblLocations ON tblMain.LocationID = tblLocations.LocationID
+        LEFT JOIN tblCategories ON tblMain.CategoryID = tblCategories.CategoryID
+    ''')
     main_items = cursor.fetchall()
 
     cursor.execute('SELECT * FROM tblLocations')
@@ -147,6 +157,59 @@ def scan_qr():
         else:
             return "Invalid QR Code", 400
     return render_template('scan_qr.html')
+
+@app.route('/edit_category/<int:category_id>', methods=['GET', 'POST'])
+def edit_category(category_id):
+    conn = db_connection()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        category_name = request.form['category_name']
+        cursor.execute('''
+            UPDATE tblCategories
+            SET CategoryName = ?
+            WHERE CategoryID = ?
+        ''', (category_name, category_id))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('categories'))
+
+    cursor.execute('SELECT * FROM tblCategories WHERE CategoryID = ?', (category_id,))
+    category = cursor.fetchone()
+    conn.close()
+    return render_template('edit_category.html', category=category)
+
+@app.route('/edit_main/<int:item_id>', methods=['GET', 'POST'])
+def edit_main(item_id):
+    conn = db_connection()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        location_id = request.form['location_id']
+        category_id = request.form['category_id']
+        description = request.form['description']
+        notes = request.form['notes']
+        parent_id = request.form.get('parent_id') or None
+        cursor.execute('''
+            UPDATE tblMain
+            SET LocationID = ?, CategoryID = ?, Description = ?, Notes = ?, ParentID = ?
+            WHERE ID = ?
+        ''', (location_id, category_id, description, notes, parent_id, item_id))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('main'))
+
+    cursor.execute('SELECT * FROM tblMain WHERE ID = ?', (item_id,))
+    item = cursor.fetchone()
+
+    cursor.execute('SELECT * FROM tblLocations')
+    locations = cursor.fetchall()
+
+    cursor.execute('SELECT * FROM tblCategories')
+    categories = cursor.fetchall()
+
+    conn.close()
+    return render_template('edit_main.html', item=item, locations=locations, categories=categories)
 
 if __name__ == '__main__':
     app.run(debug=True)
