@@ -106,5 +106,47 @@ def delete_main(id):
     conn.close()
     return redirect(url_for('main'))
 
+@app.route('/add_item_details/<int:main_id>', methods=['GET', 'POST'])
+def add_item_details(main_id):
+    conn = db_connection()
+    cursor = conn.cursor()
+
+    # Fetch the description for the item being edited
+    cursor.execute('SELECT Description FROM tblMain WHERE ID = ?', (main_id,))
+    item = cursor.fetchone()
+
+    if request.method == 'POST':
+        make = request.form['make']
+        model = request.form['model']
+        sn = request.form['sn']
+        cost = request.form['cost']
+        quantity = request.form['quantity']
+        condition = request.form['condition']
+
+        cursor.execute('''
+            INSERT INTO tblDetail (tblMainID, Make, Model, SN, Cost, Quantity, Condition)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (main_id, make, model, sn, cost, quantity, condition))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('main'))
+
+    conn.close()
+    return render_template('add_item_details.html', main_id=main_id, description=item['Description'] if item else None)
+
+@app.route('/scan_qr', methods=['GET', 'POST'])
+def scan_qr():
+    if request.method == 'POST':
+        file = request.files['qr_image']
+        img = Image.open(file)
+        qr_data = decode(img)
+        if qr_data:
+            data = qr_data[0].data.decode('utf-8')
+            item_id = data.split(",")[0].split(":")[1].strip()
+            return redirect(f'/view_item/{item_id}')
+        else:
+            return "Invalid QR Code", 400
+    return render_template('scan_qr.html')
+
 if __name__ == '__main__':
     app.run(debug=True)
